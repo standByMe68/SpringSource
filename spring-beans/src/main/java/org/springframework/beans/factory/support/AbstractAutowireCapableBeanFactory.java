@@ -553,6 +553,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// Instantiate the bean.
 		BeanWrapper instanceWrapper = null;
 		//如果当前bean是单例的，先移除工厂bean中的该实例并获取
+		// 尝试从Factorybean缓存中获取当前bean
 		if (mbd.isSingleton()) {
 			instanceWrapper = this.factoryBeanInstanceCache.remove(beanName);
 		}
@@ -562,14 +563,16 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 		//获取bean实例
 		final Object bean = instanceWrapper.getWrappedInstance();
-		//获取当前bean的clsaa
+		//获取当前bean的class
 		Class<?> beanType = instanceWrapper.getWrappedClass();
 		if (beanType != NullBean.class) {
 			mbd.resolvedTargetType = beanType;
 		}
 
 		// Allow post-processors to modify the merged bean definition.
+		//后置处理器锁
 		synchronized (mbd.postProcessingLock) {
+			// 判断是否存在后置处理器
 			if (!mbd.postProcessed) {
 				try {
 					//调用MergedBeanDefinitionPostProcessor接口实现类的合并BeanDefinition方法
@@ -593,6 +596,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				logger.trace("Eagerly caching bean '" + beanName +
 						"' to allow for resolving potential circular references");
 			}
+			//如果是当前单例是需要进行循环依赖或者可能存在循环依赖的情况下，需要将当前的bean对象/lambda表达式放入三级缓存中一边进行循环依赖
 			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
 		}
 
@@ -1191,14 +1195,16 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		boolean autowireNecessary = false;
 		if (args == null) {
 			synchronized (mbd.constructorArgumentLock) {
+				//解析构造器或者工厂方法不为null
 				if (mbd.resolvedConstructorOrFactoryMethod != null) {
 					resolved = true;
+					// 构造器方法参数解析器
 					autowireNecessary = mbd.constructorArgumentsResolved;
 				}
 			}
 		}
 		if (resolved) {
-			//是否需要自动注入
+			//是否需要自动注入，需要自动为构造器注入
 			if (autowireNecessary) {
 				return autowireConstructor(beanName, mbd, null, null);
 			}
@@ -1380,6 +1386,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable BeanWrapper bw) {
 		if (bw == null) {
 			//判断该bean是否存在属性，如果该bean不存在属性并且没有实例，直接报错
+			//如果当前bean实例不存在并且beanDefinition有属性，则进行报错
 			if (mbd.hasPropertyValues()) {
 				throw new BeanCreationException(
 						mbd.getResourceDescription(), beanName, "Cannot apply property values to null instance");
@@ -1397,6 +1404,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		//判断合法性，是否存在InstantiationAwareBeanPostProcessors
 		if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
+				// 初始化后置处理器
 				if (bp instanceof InstantiationAwareBeanPostProcessor) {
 					InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
 					//调用初始化方法  进行实力化之后的处理

@@ -845,6 +845,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 	@Override
 	public void preInstantiateSingletons() throws BeansException {
+
+		//判断当前日志类型是不是Trace，如果是，就输出开始初始化单例的日志
 		if (logger.isTraceEnabled()) {
 			logger.trace("Pre-instantiating singletons in " + this);
 		}
@@ -862,30 +864,33 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			if (!bd.isAbstract() && bd.isSingleton() && !bd.isLazyInit()) {
 				//判断该bean是FactoryBean
 				if (isFactoryBean(beanName)) {
-					//工厂bean的前缀为 "&"
+					//工厂bean的前缀为 "&" 先获取当前工厂bean对象
 					Object bean = getBean(FACTORY_BEAN_PREFIX + beanName);
 					//如果当前bean是FactoryBean
 					if (bean instanceof FactoryBean) {
+						// 转换bean类型对FactoryBean
 						final FactoryBean<?> factory = (FactoryBean<?>) bean;
+						// 是否需要直接初始化标签
 						boolean isEagerInit;
+						// 判断当前是否存在安全管理器
 						if (System.getSecurityManager() != null && factory instanceof SmartFactoryBean) {
 							isEagerInit = AccessController.doPrivileged((PrivilegedAction<Boolean>)
 											((SmartFactoryBean<?>) factory)::isEagerInit,
 									getAccessControlContext());
 						}
 						else {
+							// 如果当前bean是SmartFactoryBean的实现类并且当前bean是需要直接初始化的
 							isEagerInit = (factory instanceof SmartFactoryBean &&
 									((SmartFactoryBean<?>) factory).isEagerInit());
 						}
+						//如果需要直接初始化改bean，直接初始化
 						if (isEagerInit) {
 							getBean(beanName);
 						}
 					}
 				}
 				else {
-					if ("hello".equals(beanName)) {
-						System.out.println();
-					}
+					//初始化改bean
 					getBean(beanName);
 				}
 			}
@@ -905,7 +910,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 					}, getAccessControlContext());
 				}
 				else {
-					//初始化之后的方法，可以通过this获取该bean，对gaibean进行处理
+					//初始化之后的方法，可以通过this获取该bean，对该bean进行实例化之后的处理处理
 					smartSingleton.afterSingletonsInstantiated();
 				}
 			}
